@@ -1,0 +1,139 @@
+#include "registration_transfer.h"
+
+#include <errno.h>
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define REG_LINE_BUFFER 512
+
+static void set_error(char *buffer, size_t size, const char *message) {
+  if (buffer != NULL && size > 0) snprintf(buffer, size, "%s", message);
+}
+
+static int ensure_capacity(registration_eos_table *table, size_t *capacity,
+                           size_t requested, char *error_message,
+                           size_t error_message_size) {
+  if (requested <= *capacity) return 0;
+  size_t new_capacity = (*capacity == 0) ? 64 : 2 * (*capacity);
+  while (new_capacity < requested) new_capacity *= 2;
+  double *p;
+  p = realloc(table->log_temperature, new_capacity * sizeof(double));
+  if (p == NULL) { set_error(error_message,error_message_size,"allocation failure"); return 1; }
+  table->log_temperature = p;
+  p = realloc(table->g_rho, new_capacity * sizeof(double));
+  if (p == NULL) { set_error(error_message,error_message_size,"allocation failure"); return 1; }
+  table->g_rho = p;
+  p = realloc(table->g_p, new_capacity * sizeof(double));
+  if (p == NULL) { set_error(error_message,error_message_size,"allocation failure"); return 1; }
+  table->g_p = p;
+  p = realloc(table->g_s, new_capacity * sizeof(double));
+  if (p == NULL) { set_error(error_message,error_message_size,"allocation failure"); return 1; }
+  table->g_s = p;
+  *capacity = new_capacity;
+  return 0;
+}
+
+void registration_eos_free(registration_eos_table *table) {
+  if (table == NULL) return;
+  free(table->log_temperature); free(table->g_rho); free(table->g_p); free(table->g_s);
+  memset(table, 0, sizeof(*table));
+}
+
+int registration_eos_load_csv(const char *path, registration_eos_table *table,
+                              char *error_message, size_t error_message_size) {
+  if (path == NULL || table == NULL) { set_error(error_message,error_message_size,"null path or table"); return 1; }
+  memset(table, 0, sizeof(*table));
+  FILE *file = fopen(path, "r");
+  if (file == NULL) {
+    char message[REG_LINE_BUFFER];
+    snprintf(message,sizeof(message),"cannot open EOS table '%s': %s",path,strerror(errno));
+    set_error(error_message,error_message_size,message); return 1;
+  }
+  size_t capacity = 0;
+  char line[REG_LINE_BUFFER];
+  while (fgets(line, sizeof(line), file) != NULL) {
+    char *cursor = line;
+    while (*cursor == ' ' || *cursor == '\t') cursor++;
+    if (*cursor == '#' || *cursor == '\n' || *cursor == '\0' || strstr(cursor,"T_GeV") != NULL) continue;
+    double temperature,g_rho,g_p,g_s;
+    if (sscanf(cursor," %lf , %lf , %lf , %lf",&temperature,&g_rho,&g_p,&g_s) != 4) {
+      fclose(file); registration_eos_free(table); set_error(error_message,error_message_size,"malformed EOS CSV row"); return 1;
+    }
+    if (!(temperature>0 && g_rho>0 && g_p>0 && g_s>0)) {
+      fclose(file); registration_eos_free(table); set_error(error_message,error_message_size,"EOS values must be positive"); return 1;
+    }
+    if (table->size>0 && log(temperature)<=table->log_temperature[table->size-1]) {
+      fclose(file); registration_eos_free(table); set_error(error_message,error_message_size,"EOS temperatures must increase"); return 1;
+    }
+    if (ensure_capacity(table,&capacity,table->size+1,error_message,error_message_size)) {
+      fclose(file); registration_eos_free(table); return 1;
+    }
+    table->log_temperature[table->size]=log(temperature);
+    table->g_rho[table->size]=g_rho; table->g_p[table->size]=g_p; table->g_s[table->size]=g_s;
+    table->size++;
+  }
+  fclose(file);
+  if (table->size<2) { registration_eos_free(table); set_error(error_message,error_message_size,"EOS table requires two rows"); return 1; }
+  return 0;
+}
+
+static size_t lower_interval(const registration_eos_table *table, double x) {
+  size_t lo=0, hi=table->size-1;
+  while (hi-lo>1) { size_t mid=lo+(hi-lo)/2; if (table->log_temperature[mid]<=x) lo=mid; else hi=mid; }
+  return lo;
+}
+
+static int interpolate_all(const registration_eos_table *table, double x,
+                           double *g_rho,double *g_p,double *g_s,
+                           double *dln_gr,double *dln_gp) {
+  if (x<table->log_temperature[0] || x>table->log_temperature[table->size-1]) return 1;
+  if (x==table->log_temperature[table->size-1]) x=nextafter(x,-INFINITY);
+  size_t i=lower_interval(table,x);
+  double x0=table->log_temperature[i], x1=table->log_temperature[i+1], f=(x-x0)/(x1-x0);
+  *g_rho=exp((1-f)*log(table->g_rho[i])+f*log(table->g_rho[i+1]));
+  *g_p=exp((1-f)*log(table->g_p[i])+f*log(table->g_p[i+1]));
+  *g_s=exp((1-f)*log(table->g_s[i])+f*log(table->g_s[i+1]));
+  *dln_gr=(log(table->g_rho[i+1])-log(table->g_rho[i]))/(x1-x0);
+  *dln_gp=(log(table->g_p[i+1])-log(table->g_p[i]))/(x1-x0);
+  return 0;
+}
+
+int registration_eos_evaluate(const registration_eos_table *table,
+                              double temperature_gev,double trace_power,
+                              double trace_floor,registration_thermo_state *state,
+                              char *error_message,size_t error_message_size) {
+  if (table==NULL || state==NULL || table->size<2) { set_error(error_message,error_message_size,"uninitialized EOS table"); return 1; }
+  if (!(temperature_gev>0 && trace_power>0 && trace_floor>0)) { set_error(error_message,error_message_size,"invalid EOS arguments"); return 1; }
+  double dln_gr=0,dln_gp=0;
+  if (interpolate_all(table,log(temperature_gev),&state->g_rho,&state->g_p,&state->g_s,&dln_gr,&dln_gp)) {
+    set_error(error_message,error_message_size,"temperature outside EOS range"); return 1;
+  }
+  double ratio=state->g_p/state->g_rho;
+  double raw=fabs(1.0-ratio);
+  state->trace_fraction=fmax(raw,trace_floor);
+  state->activation=pow(state->trace_fraction,trace_power);
+  if (raw<=trace_floor) state->dln_activation_dln_temperature=0.0;
+  else {
+    double sign=(1.0-ratio>=0.0)?1.0:-1.0;
+    double dtrace=-sign*ratio*(dln_gp-dln_gr);
+    state->dln_activation_dln_temperature=trace_power*dtrace/state->trace_fraction;
+  }
+  return 0;
+}
+
+int registration_transfer_evaluate(const registration_eos_table *table,
+    const registration_transfer_parameters *parameters,double temperature_gev,
+    double hubble_rate,double rho_flux,double delta_theta_over_theta,
+    double delta_rho_flux_over_rho_flux,double delta_temperature_over_temperature,
+    registration_transfer_state *state,char *error_message,size_t error_message_size) {
+  if (parameters==NULL || state==NULL) { set_error(error_message,error_message_size,"null transfer state"); return 1; }
+  if (!(parameters->lambda0>=0 && hubble_rate>=0 && rho_flux>=0)) { set_error(error_message,error_message_size,"negative transfer input"); return 1; }
+  if (registration_eos_evaluate(table,temperature_gev,parameters->trace_power,
+      parameters->trace_floor,&state->thermo,error_message,error_message_size)) return 1;
+  state->Q=parameters->lambda0*hubble_rate*state->thermo.activation*rho_flux;
+  state->delta_Q_over_Q=delta_theta_over_theta+delta_rho_flux_over_rho_flux+
+      state->thermo.dln_activation_dln_temperature*delta_temperature_over_temperature;
+  return 0;
+}
