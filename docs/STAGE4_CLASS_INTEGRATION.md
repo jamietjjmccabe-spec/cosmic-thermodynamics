@@ -38,7 +38,9 @@ The transfer expansion scalar is the scalar
 \Theta_{\rm tr}=\nabla_\mu u_{\rm tr}^\mu,
 \]
 
-with `u_tr^mu` fixed to the radiation/plasma energy frame. In conformal Newtonian gauge, using the usual scalar-velocity convention,
+with `u_tr^mu` fixed to the plasma energy frame. At the QCD epoch this frame must include the full thermally coupled Standard-Model plasma represented by the EOS table, not merely the late-time `gamma+b+nu` bookkeeping species.
+
+In conformal Newtonian gauge, using the usual scalar-velocity convention,
 
 \[
 \frac{\delta\Theta_{\rm tr}}{\bar\Theta}
@@ -52,16 +54,29 @@ In synchronous gauge,
 =\frac{\theta_{\rm tr}+h'/2}{3\mathcal H}.
 \]
 
-Signs must be checked against the exact CLASS velocity-divergence convention. The radiation-frame velocity itself is the enthalpy-weighted plasma velocity, not a ratio of velocity divergences.
+Signs must be checked against the exact CLASS velocity-divergence convention. The plasma-frame velocity is the enthalpy-weighted energy-frame velocity, not a ratio of velocity divergences.
+
+The perturbations of local scalars such as `T` and `Theta_tr` are not individually gauge invariant. They must be reconstructed consistently in the chosen gauge, or combined into explicitly gauge-invariant variables. Gauge independence is established only when physical observables agree between gauges.
+
+## Flux-sector closure
+
+The provisional pair `w_flux=-1` and `cs2_flux=1` must not be used as a generic fluid closure.
+
+An exact vacuum component with `w_flux=-1` has no unique material rest frame, so assigning a canonical rest-frame sound speed is not meaningful without an explicit interacting-vacuum prescription. Conversely, a canonical scalar field has rest-frame sound speed `cs2_flux=1`, but when it is dynamically rolling and transferring energy it generally satisfies `w_flux>-1` rather than exactly `-1`.
+
+The finite-k implementation must choose one of two explicit closures:
+
+1. **Canonical scalar closure:** provide an action, potential and coupling; evolve the background scalar and its perturbed Klein-Gordon equation. Then `cs2_flux=1` follows from the action and `w_flux(a)` is derived.
+2. **Interacting-vacuum closure:** impose `T_flux^{mu nu}=-V g^{mu nu}` with a covariantly specified transfer four-vector. Vacuum perturbations and momentum transfer are then defined by that prescription, not by a fluid rest-frame sound speed.
+
+No CMB spectrum should be interpreted until one of these closures is implemented.
 
 ## Upstream insertion points
 
 - `include/background.h`: add `rho_reg`, `rho_flux`, transfer parameters, EOS storage.
 - `source/input.c`: parse `Omega0_reg`, `Omega0_flux`, `registration_lambda0`, `registration_trace_power`, EOS path, and an external-clock test switch.
-- `source/background.c`: evolve `rho_reg'=-3 Hc rho_reg+aQ` and `rho_flux'=-3 Hc(1+w_flux)rho_flux-aQ` with ordinary CDM set to zero.
-- `include/perturbations.h`, `source/perturbations.c`: add `delta_reg`, `theta_reg`, `delta_flux`, `theta_flux`; reconstruct the local plasma temperature perturbation from the thermal EOS; construct `deltaTheta_tr` including metric and velocity terms; and derive energy/momentum transfer from `Q_reg^mu=Q u_rad^mu`.
-
-The first restrictive flux closure is `w_flux=-1`, `cs2_flux=1`, `pi_flux=0`.
+- `source/background.c`: evolve `rho_reg'=-3 Hc rho_reg+aQ` and the chosen flux-sector background equation with ordinary CDM set to zero.
+- `include/perturbations.h`, `source/perturbations.c`: add `delta_reg`, `theta_reg` and the variables required by the selected flux closure; reconstruct the local plasma temperature perturbation from the thermal EOS; construct `deltaTheta_tr` including metric and velocity terms; and derive energy/momentum transfer from `Q_reg^mu=Q u_tr^mu`.
 
 ## Mandatory gates
 
@@ -75,5 +90,6 @@ The first restrictive flux closure is `w_flux=-1`, `cs2_flux=1`, `pi_flux=0`.
 8. Physical spectra agree between synchronous and Newtonian gauge.
 9. Results converge under time-step, interpolation, and tolerance scans.
 10. Replacing the development EOS table with a smooth lattice-QCD EOS does not qualitatively alter the production history.
+11. The selected flux closure remains regular through the production epoch and does not introduce an arbitrary rest-frame prescription.
 
 A writable CLASS fork was not connected, so this branch is a validated integration workspace, not a claim that finite-k CLASS spectra have already been produced.
