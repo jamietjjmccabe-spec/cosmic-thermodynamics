@@ -27,6 +27,9 @@ typedef struct {
   double g_s;
   double trace_fraction;
   double activation;
+  double dln_g_rho_dln_temperature;
+  double dln_g_p_dln_temperature;
+  double dln_g_s_dln_temperature;
   double dln_activation_dln_temperature;
 } registration_thermo_state;
 
@@ -36,13 +39,23 @@ typedef struct {
   registration_thermo_state thermo;
 } registration_transfer_state;
 
-int registration_eos_load_csv(const char *path, registration_eos_table *table,
-                              char *error_message, size_t error_message_size);
+int registration_eos_load_csv(
+    const char *path,
+    registration_eos_table *table,
+    char *error_message,
+    size_t error_message_size);
+
 void registration_eos_free(registration_eos_table *table);
-int registration_eos_evaluate(const registration_eos_table *table,
-                              double temperature_gev, double trace_power,
-                              double trace_floor, registration_thermo_state *state,
-                              char *error_message, size_t error_message_size);
+
+int registration_eos_evaluate(
+    const registration_eos_table *table,
+    double temperature_gev,
+    double trace_power,
+    double trace_floor,
+    registration_thermo_state *state,
+    char *error_message,
+    size_t error_message_size);
+
 int registration_transfer_evaluate(
     const registration_eos_table *table,
     const registration_transfer_parameters *parameters,
