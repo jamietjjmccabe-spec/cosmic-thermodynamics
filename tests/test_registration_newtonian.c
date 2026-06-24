@@ -76,6 +76,14 @@ int main(int argc, char **argv) {
   CHECK(almost_zero(output.momentum_balance_residual, momentum_scale),
         "linear momentum balance residual failed");
 
+  const double expected_linearity_ratio =
+      fabs(output.transfer.delta_Q_over_Q);
+  CHECK(output.production_linearity_ratio_defined == 1,
+        "active transfer did not define scalar-linearity diagnostic");
+  CHECK(fabs(output.production_linearity_ratio - expected_linearity_ratio) <
+            1.0e-16,
+        "scalar-linearity diagnostic mapping failed");
+
   const double expected_birth_ratio =
       sqrt(input.k_squared) * fabs(input.delta_flux) /
       (input.scale_factor * output.transfer.Q);
@@ -84,6 +92,16 @@ int main(int argc, char **argv) {
   CHECK(fabs(output.birth_flow_ratio_estimate - expected_birth_ratio) <
             1.0e-14 * fmax(1.0, fabs(expected_birth_ratio)),
         "birth-flow diagnostic mapping failed");
+
+  const double expected_residual_force_ratio =
+      input.k_squared * fabs(input.delta_flux) /
+      (input.conformal_hubble * fabs(input.q_registration) +
+       input.rho_registration * input.k_squared * fabs(input.phi));
+  CHECK(output.residual_force_ratio_defined == 1,
+        "residual-force diagnostic was not defined");
+  CHECK(fabs(output.residual_force_ratio - expected_residual_force_ratio) <
+            1.0e-14 * fmax(1.0, fabs(expected_residual_force_ratio)),
+        "residual-force diagnostic mapping failed");
 
   registration_newtonian_input zero_density = input;
   zero_density.rho_registration = 0.0;
@@ -97,6 +115,9 @@ int main(int argc, char **argv) {
   CHECK(isfinite(zero_output.delta_rho_registration_prime) &&
         isfinite(zero_output.q_registration_prime),
         "zero-density derivatives are not finite");
+  CHECK(zero_output.residual_force_ratio_defined == 0 &&
+        isnan(zero_output.residual_force_ratio),
+        "residual-force ratio should be undefined with zero comparison force");
 
   registration_transfer_parameters disabled = parameters;
   disabled.lambda0 = 0.0;
@@ -111,9 +132,15 @@ int main(int argc, char **argv) {
         uncoupled_output.delta_Q == 0.0 &&
         uncoupled_output.delta_flux_prime == 0.0,
         "lambda0=0 did not disable vacuum transfer");
+  CHECK(uncoupled_output.production_linearity_ratio_defined == 0 &&
+        isnan(uncoupled_output.production_linearity_ratio),
+        "scalar-linearity ratio should be undefined when Q=0");
   CHECK(uncoupled_output.birth_flow_ratio_defined == 0 &&
         isnan(uncoupled_output.birth_flow_ratio_estimate),
         "birth-flow diagnostic should be undefined when Q=0");
+  CHECK(uncoupled_output.residual_force_ratio_defined == 1 &&
+        uncoupled_output.residual_force_ratio == 0.0,
+        "zero residual vacuum force did not produce zero force ratio");
 
   const double expected_uncoupled_density_prime =
       -3.0 * uncoupled.conformal_hubble *
@@ -132,12 +159,16 @@ int main(int argc, char **argv) {
          output.delta_temperature_over_temperature);
   printf("deltaQ_over_Q=%.12g\n",
          output.transfer.delta_Q_over_Q);
+  printf("production_linearity_ratio=%.12g\n",
+         output.production_linearity_ratio);
   printf("energy_bianchi_residual=%.12g\n",
          output.energy_bianchi_residual);
   printf("momentum_balance_residual=%.12g\n",
          output.momentum_balance_residual);
   printf("birth_flow_ratio_estimate=%.12g\n",
          output.birth_flow_ratio_estimate);
+  printf("residual_force_ratio=%.12g\n",
+         output.residual_force_ratio);
   printf("zero_density_delta_rho_prime=%.12g\n",
          zero_output.delta_rho_registration_prime);
   printf("zero_density_q_prime=%.12g\n",
