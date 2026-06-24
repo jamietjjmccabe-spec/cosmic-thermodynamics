@@ -42,11 +42,22 @@ typedef struct {
   double energy_bianchi_residual;
   double momentum_balance_residual;
 
+  /* |delta Q| / Qbar during active production. This tests whether the
+     scalar creation-rate perturbation remains in the linear regime. */
+  int production_linearity_ratio_defined;
+  double production_linearity_ratio;
+
   /* Linear Fourier-mode estimate of |Q_spatial|/Q_energy during active
      creation. This is a perturbative linearity diagnostic, not a
      pointwise nonlinear proof that Q_mu Q^mu < 0. */
   int birth_flow_ratio_defined;
   double birth_flow_ratio_estimate;
+
+  /* Residual vacuum-gradient force relative to Hubble drag plus standard
+     gravitational infall. This is intended to demonstrate post-production
+     geodesic decoupling. */
+  int residual_force_ratio_defined;
+  double residual_force_ratio;
 } registration_newtonian_output;
 
 int registration_newtonian_derivs(
