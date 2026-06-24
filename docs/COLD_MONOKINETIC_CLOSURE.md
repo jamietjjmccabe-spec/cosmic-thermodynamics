@@ -37,6 +37,37 @@ The resulting linear single-stream stress tensor is pressureless. This justifies
 
 It does not justify a warm or multi-stream hierarchy.
 
+## Independent linear failure diagnostics
+
+The Newtonian kernel reports two independent active-production diagnostics.
+
+The scalar production-linearity ratio is
+
+\[
+\epsilon_Q(k,\tau)
+=\left|\frac{\delta\mathcal Q}{\bar{\mathcal Q}}\right|.
+\]
+
+This tests whether the local creation-rate perturbation remains small relative to the FLRW production rate.
+
+The birth-flow ratio is
+
+\[
+\epsilon_{\rm birth}(k,\tau)
+=\frac{k\,|\delta V|}{a\,\bar{\mathcal Q}}.
+\]
+
+This estimates the spatial-to-temporal transfer ratio for a Fourier amplitude.
+
+The interpretation is:
+
+- `epsilon_Q << 1`: the scalar production law remains perturbative;
+- `epsilon_birth << 1`: compatible with a small timelike birth-flow perturbation;
+- either ratio approaching unity: the corresponding linear closure is becoming marginal;
+- `Qbar = 0`: both ratios are undefined because no particles are being created.
+
+These diagnostics test different failure modes and must both be monitored.
+
 ## Causal-source condition
 
 For a non-negative local source of future-directed causal particles, the first source moment must itself be future causal:
@@ -48,23 +79,28 @@ Q_{{\rm reg}\,\mu}Q_{\rm reg}^\mu\le0,
 
 A spacelike first moment cannot be repaired merely by widening a positive particle momentum distribution.
 
-However, in linear perturbation theory the spatial-gradient contribution to `Q_mu Q^mu` is quadratic in perturbation amplitude. Therefore a first-order Fourier code cannot establish the exact pointwise nonlinear condition by evaluating the invariant norm mode by mode.
+However, in linear perturbation theory the spatial-gradient contribution to `Q_mu Q^mu` is quadratic in perturbation amplitude. Therefore a first-order Fourier code cannot establish the exact pointwise nonlinear condition by evaluating the invariant norm mode by mode. `epsilon_birth` is a linearity and consistency diagnostic, not an exact real-space causal proof.
 
-During active production, the Newtonian kernel reports the diagnostic
+## Post-production decoupling diagnostic
+
+The end of background production does not by itself eliminate the spatial vacuum-gradient force. The kernel therefore reports
 
 \[
-\epsilon_{\rm birth}(k,\tau)
-=\frac{k\,|\delta V|}{a\,\bar{\mathcal Q}}.
+R_{\rm force}(k,\tau)
+=
+\frac{k^2|\delta V|}
+{\mathcal H|q_{\rm reg}|+\bar\rho_{\rm reg}k^2|\phi|}.
 \]
 
-This estimates the spatial-to-temporal transfer ratio for a Fourier amplitude. The interpretation is:
+This compares the residual vacuum-gradient force with Hubble drag plus standard gravitational infall.
 
-- `epsilon_birth << 1`: compatible with a small timelike birth-velocity perturbation;
-- `epsilon_birth ~ 1`: cold linearization is becoming marginal;
-- `epsilon_birth > 1`: warning that the mode cannot be trusted as a small perturbation of the homogeneous timelike transfer;
-- `Qbar = 0`: the ratio is undefined because no particles are being created and no birth velocity is physically required.
+A CDM-like post-production limit requires
 
-This is a linearity and consistency diagnostic, not an exact real-space causal proof. The exact test must be applied to reconstructed nonlinear fields or a real-space Vlasov/N-body realization.
+\[
+R_{\rm force}\longrightarrow0
+\]
+
+for all relevant modes after freeze-in. The ratio is undefined when the comparison force in the denominator vanishes; code must report this explicitly rather than insert an arbitrary floor.
 
 ## Zero-transfer limit
 
@@ -78,7 +114,7 @@ The adiabatic initial condition
 \delta V=\bar V'\Delta\tau_{\rm ad}
 \]
 
-ensures that `delta V` vanishes with the background source in the deep early-time limit. Numerical runs must still verify that `epsilon_birth` remains controlled across the tails of the production episode.
+ensures that `delta V` vanishes with the background source in the deep early-time limit. Numerical runs must still verify that the active-production diagnostics remain controlled across the production tails and that `R_force` decays afterward.
 
 ## Validity range
 
@@ -86,8 +122,10 @@ The cold closure is valid for linear cosmology and single-stream evolution. It c
 
 ## Mandatory tests before interpreting a CMB spectrum
 
-1. `epsilon_birth` remains much smaller than unity over the active production window for all linear modes used in the spectra.
-2. Results converge when the active-window threshold and starting time are varied.
-3. The cold source remains non-negative in the chosen local production model.
-4. A narrow finite-width comparison source is eventually used to bound sensitivity to warm injection.
-5. No claim about nonlinear timelikeness is made from first-order Fourier data alone.
+1. `epsilon_Q` remains much smaller than unity over the active production window.
+2. `epsilon_birth` remains much smaller than unity over the active production window.
+3. `R_force` tends to zero after freeze-in for all relevant modes.
+4. Results converge when the active-window threshold and starting time are varied.
+5. The cold source remains non-negative in the chosen local production model.
+6. A narrow finite-width comparison source is eventually used to bound sensitivity to warm injection.
+7. No claim about nonlinear timelikeness is made from first-order Fourier data alone.
