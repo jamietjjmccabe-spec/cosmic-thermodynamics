@@ -87,13 +87,33 @@ int registration_newtonian_derivs(
       output->transfer.Q * output->transfer.delta_Q_over_Q;
 
   if (output->transfer.Q > 0.0) {
+    output->production_linearity_ratio_defined = 1;
+    output->production_linearity_ratio =
+        fabs(output->transfer.delta_Q_over_Q);
+
     output->birth_flow_ratio_defined = 1;
     output->birth_flow_ratio_estimate =
         sqrt(input->k_squared) * fabs(input->delta_flux) /
         (input->scale_factor * output->transfer.Q);
   } else {
+    output->production_linearity_ratio_defined = 0;
+    output->production_linearity_ratio = NAN;
     output->birth_flow_ratio_defined = 0;
     output->birth_flow_ratio_estimate = NAN;
+  }
+
+  const double residual_force_numerator =
+      input->k_squared * fabs(input->delta_flux);
+  const double residual_force_denominator =
+      input->conformal_hubble * fabs(input->q_registration) +
+      input->rho_registration * input->k_squared * fabs(input->phi);
+  if (residual_force_denominator > 0.0) {
+    output->residual_force_ratio_defined = 1;
+    output->residual_force_ratio =
+        residual_force_numerator / residual_force_denominator;
+  } else {
+    output->residual_force_ratio_defined = 0;
+    output->residual_force_ratio = NAN;
   }
 
   output->delta_flux_prime =
