@@ -86,6 +86,16 @@ int registration_newtonian_derivs(
   output->delta_Q =
       output->transfer.Q * output->transfer.delta_Q_over_Q;
 
+  if (output->transfer.Q > 0.0) {
+    output->birth_flow_ratio_defined = 1;
+    output->birth_flow_ratio_estimate =
+        sqrt(input->k_squared) * fabs(input->delta_flux) /
+        (input->scale_factor * output->transfer.Q);
+  } else {
+    output->birth_flow_ratio_defined = 0;
+    output->birth_flow_ratio_estimate = NAN;
+  }
+
   output->delta_flux_prime =
       -input->scale_factor *
       (output->delta_Q + output->transfer.Q * input->phi);
