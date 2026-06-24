@@ -41,6 +41,12 @@ typedef struct {
 
   double energy_bianchi_residual;
   double momentum_balance_residual;
+
+  /* Linear Fourier-mode estimate of |Q_spatial|/Q_energy during active
+     creation. This is a perturbative linearity diagnostic, not a
+     pointwise nonlinear proof that Q_mu Q^mu < 0. */
+  int birth_flow_ratio_defined;
+  double birth_flow_ratio_estimate;
 } registration_newtonian_output;
 
 int registration_newtonian_derivs(
